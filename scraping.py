@@ -1,30 +1,44 @@
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 import urllib.request
+import re
 
 
-for index in range(108,110):#50,700
+def getNewsInfo(index):
+    url = "http://media.naver.com/press/" + str(index) + "/ranking?type=popular"
+    req = urlopen(url)
+    soup = BeautifulSoup(req, "lxml", from_encoding='utf-8')
+    name = soup.find("a", {"class": "press_hd_name_link"})  # 언론사명
+    title = soup.select(".list_title");  # 기사제목
+    subUrl = soup.select("._es_pc_link");  # 기사링크
+    return {"name":name.text.strip(),"title":title,"subUrl":subUrl};
+
+for index in range(215,216):#50,700
     try:
-        req = urlopen('https://media.naver.com/press/'+str(index)+'/ranking?type=popular')
-        soup = BeautifulSoup(req,"lxml",from_encoding='utf-8')
-        name = soup.find("a",{"class":"press_hd_name_link"})#언론사명
-        title = soup.select(".list_title");  # 기사제목
-        url = soup.select("._es_pc_link");  # 기사링크
-        print(index,name.text.strip())
+        newsInformation=getNewsInfo(index)
+        name=newsInformation['name']
+        title=newsInformation['title']
+        subUrl=newsInformation['subUrl']
+        print("^^")
+        print(name)
 
         for tmp in range(len(title)):
+            print("///-------------------------------------------------------------------------")
             print(title[tmp].text)
-            print(url[tmp]['href'])
+            print(subUrl[tmp]['href'])
 
-            headers = {'User-Agent':'Mozilla/5.0 (iPhone; CPU iPhone OS 6_0 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Version/6.0 Mobile/10A5376e Safari/8536.25'}
-            req = urllib.request.Request(url[tmp]['href'],headers=headers)
+            req = urllib.request.Request(subUrl[tmp]['href'])
             subREQ = urlopen(req)
             subSoup = BeautifulSoup(subREQ, "lxml", from_encoding='utf-8')
-            print(subSoup)
-            subText = subSoup.select(".article_p") ##dic_area
-            print(subText)
-    except:
-        pass
+            subIMG1=subSoup.find("div",{"id":"dic_area"})
+            subIMG2 = subIMG1.find_all("img",{"class":"_LAZY_LOADING"})
+            for imgTmp in subIMG2:
+                print(imgTmp['data-src'])
+            subTEXT = subSoup.select_one("#dic_area")
+            print(subTEXT.text)
+
+    except Exception as e:
+        print(e)
 
 
 '''
