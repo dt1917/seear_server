@@ -2,10 +2,11 @@ import os
 import sys
 import json
 import urllib.request
-
+from setting import setting
 #config ----------------------
-client_id = ""
-client_secret = ""
+key_value=setting()
+client_id = key_value.client_id
+client_secret = key_value.client_secret
 
 class papagoAPI:
     target=""

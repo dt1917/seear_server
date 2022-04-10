@@ -1,6 +1,7 @@
 from flask import Flask
 from .views.scrapping import Scheduler
 from .views.tts import TTS
+from .views.translate import papagoAPI
 import json
 
 app=Flask(__name__)
@@ -28,3 +29,8 @@ def home():
 def doTTS():
     tmpTTS=TTS(1234,"안녕하세요")
     return tmpTTS.speak()
+
+@app.route("/translate")
+def doTranslate():
+    trans=papagoAPI("my name is seear")
+    return trans.eNtokR()
