@@ -2,12 +2,10 @@ import os
 import sys
 import json
 import urllib.request
-#config ----------------------
-with open('.env') as json_file:
-    env_data = json.load(json_file)
+import os
 
-client_id = env_data['client_id']
-client_secret = env_data['client_secret']
+client_id = os.environ.get("CLIENT_ID")
+client_secret = os.environ.get("CLIENT_SECRET")
 
 class papagoAPI:
     target=""
