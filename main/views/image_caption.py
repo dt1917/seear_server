@@ -1,5 +1,6 @@
+from io import BytesIO
+
 import torch
-import pickle
 import torch.nn as nn
 from PIL import Image
 from torchvision import transforms
@@ -8,6 +9,7 @@ from torch.nn.utils.rnn import pack_padded_sequence
 import pickle
 import nltk
 from collections import Counter
+from urllib import request
 
 num_train_images = 6000
 num_val_images = 1000
@@ -90,8 +92,6 @@ class Vocabulary(object):
     def __len__(self):
         return len(self.word2idx)
 
-
-
 counter = Counter()
 
 with open(caption_path, "r") as f:
@@ -130,7 +130,8 @@ with open(vocab_path, 'wb') as f:
 
 
 def load_image(image_path, transform=None):
-    image = Image.open(image_path).convert('RGB')
+    res = request.urlopen(image_path).read()
+    image = Image.open(BytesIO(res)).convert('RGB')
     image = image.resize([224, 224], Image.LANCZOS)
 
     if transform is not None:
@@ -138,7 +139,7 @@ def load_image(image_path, transform=None):
 
     return image
 
-image_path = "../model/image.jpg"
+image_path = "https://imgnews.pstatic.net/image/001/2022/04/28/PYH2022042817560001300_P4_20220428195711761.jpg?type=w647"#"../model/image.jpg"
 encoder_path = "../model/encoder-7.ckpt"  # path for trained encoder
 decoder_path = "../model/decoder-7.ckpt"  # path for trained decoder"
 vocab_path = "../model/vocab.pkl"  # path for vocabulary wrappers
@@ -170,7 +171,6 @@ decoder.load_state_dict(torch.load(decoder_path, map_location=torch.device('cpu'
 # Prepare image
 image = load_image(image_path, transform)
 image_tensor = image.to(device)
-
 # Generate caption
 feature = encoder(image_tensor)
 sampled_ids = decoder.sample(feature)
