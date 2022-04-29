@@ -1,3 +1,4 @@
+import os.path
 from io import BytesIO
 
 import torch
@@ -10,26 +11,29 @@ import pickle
 import nltk
 from collections import Counter
 from urllib import request
-
-num_train_images = 6000
-num_val_images = 1000
+import config
 
 nltk.download('punkt')
+
+'''num_train_images = 6000
+num_val_images = 1000
+
 caption_path = "../model/Flickr8k_dataset/captions.txt"
 vocab_path = "../model/vocab.pkl"
 word_threshold = 4
 train_caption_path = "../model/resized_train/captions.txt"
 val_caption_path = "../model/resized_val/captions.txt"
-test_caption_path = "../model/resized_test/captions.txt"
+test_caption_path = "../model/resized_test/captions.txt" '''
+
 
 class EncoderCNN(nn.Module):
     def __init__(self, embed_size):
-        #Resnet-101
+        # Resnet-101
         super(EncoderCNN, self).__init__()
         resnet = models.resnet101(pretrained=True)
         modules = list(resnet.children())[:-1]
         self.resnet = nn.Sequential(*modules)
-        self.linear = nn.Linear(resnet.fc.in_features, embed_size) #output => input
+        self.linear = nn.Linear(resnet.fc.in_features, embed_size)  # output => input
         self.bn = nn.BatchNorm1d(embed_size, momentum=0.01)
 
     def forward(self, images):
@@ -50,7 +54,7 @@ class DecoderRNN(nn.Module):
         self.max_seg_length = max_seq_length
 
     def forward(self, features, captions, lengths):
-        #captions
+        # captions
         embeddings = self.embed(captions)
         embeddings = torch.cat((features.unsqueeze(1), embeddings), 1)
         packed = pack_padded_sequence(embeddings, lengths, batch_first=True)
@@ -62,17 +66,19 @@ class DecoderRNN(nn.Module):
         sampled_indexes = []
         inputs = features.unsqueeze(1)
         for i in range(self.max_seg_length):
-            hiddens, states = self.lstm(inputs, states) # hiddens: (batch_size, 1, hidden_size)
-            outputs = self.linear(hiddens.squeeze(1)) # outputs: (batch_size, vocab_size)
-            _, predicted = outputs.max(1) # predicted: (batch_size)
+            hiddens, states = self.lstm(inputs, states)  # hiddens: (batch_size, 1, hidden_size)
+            outputs = self.linear(hiddens.squeeze(1))  # outputs: (batch_size, vocab_size)
+            _, predicted = outputs.max(1)  # predicted: (batch_size)
             sampled_indexes.append(predicted)
-            inputs = self.embed(predicted) # inputs: (batch_size, embed_size)
-            inputs = inputs.unsqueeze(1) # inputs: (batch_size, 1, embed_size)
-        sampled_indexes = torch.stack(sampled_indexes, 1) # sampled_indexes: (batch_size, max_seq_length)
+            inputs = self.embed(predicted)  # inputs: (batch_size, embed_size)
+            inputs = inputs.unsqueeze(1)  # inputs: (batch_size, 1, embed_size)
+        sampled_indexes = torch.stack(sampled_indexes, 1)  # sampled_indexes: (batch_size, max_seq_length)
         return sampled_indexes
+
 
 class Vocabulary(object):
     """Simple vocabulary wrapper."""
+
     def __init__(self):
         self.word2idx = {}
         self.idx2word = {}
@@ -92,100 +98,122 @@ class Vocabulary(object):
     def __len__(self):
         return len(self.word2idx)
 
-counter = Counter()
 
-with open(caption_path, "r") as f:
-    lines = sorted(f.readlines()[1:])
-    for i in range(len(lines)):
-        line = lines[i]
-        if (i + 1) <= num_train_images * 5:
-            output_caption = train_caption_path
-        elif (i + 1) <= (num_train_images + num_val_images) * 5:
-            output_caption = val_caption_path
-        else:
-            output_caption = test_caption_path
-        index = line.find(",")
-        caption = line[index + 1:]
-        tokens = nltk.tokenize.word_tokenize(caption.lower())
-        counter.update(tokens)
-        with open(output_caption, "a") as output_caption_f:
-            output_caption_f.write(line)
+class imgTotxt:
+    adr = config.config.Model_DIR
+    num_train_images = 6000
+    num_val_images = 1000
+    word_threshold = 4
+    caption_path = os.path.join(adr, "Flickr8k_dataset/captions.txt")
+    vocab_path = os.path.join(adr, "vocab.pkl")
+    train_caption_path = os.path.join(adr, "resized_train/captions.txt")
+    val_caption_path = os.path.join(adr, "resized_val/captions.txt")
+    test_caption_path = os.path.join(adr, "resized_test/captions.txt")
 
-words = [word for word, cnt in counter.items() if cnt >= word_threshold]
+    image_path = "https://imgnews.pstatic.net/image/009/2022/04/29/0004956896_001_20220429081401047.jpg?type=w647"  # "../model/image.jpg"
+    encoder_path = os.path.join(adr, "encoder-7.ckpt")  # path for trained encoder
+    decoder_path = os.path.join(adr, "decoder-7.ckpt")  # path for trained decoder"
 
-vocab = Vocabulary()
-vocab.add_word('<pad>')
-vocab.add_word('<start>')
-vocab.add_word('<end>')
-vocab.add_word('<unk>')
+    def __int__(self,adr,num_train_images,num_val_images,word_threshold,caption_path,vocab_path,train_caption_path,val_caption_path,test_caption_path,image_path,encoder_path,decoder_path):
+        self.adr=adr
+        self.num_train_images=num_train_images
+        self.num_val_images=num_val_images
+        self.word_threshold=word_threshold
+        self.caption_path=caption_path
+        self.vocab_path=vocab_path
+        self.train_caption_path=train_caption_path
+        self.val_caption_path=val_caption_path
+        self.test_caption_path=test_caption_path
+        self.image_path=image_path
+        self.encoder_path=encoder_path
+        self.decoder_path=decoder_path
+        '''self.caption_path = "./model/Flickr8k_dataset/captions.txt"
+        self.vocab_path = "./model/vocab.pkl"
+        self.train_caption_path = "./model/resized_train/captions.txt"
+        self.val_caption_path = "./model/resized_val/captions.txt"
+        self.test_caption_path = "./model/resized_test/captions.txt"'''
+    def setting_word(self):
+        counter = Counter()
 
-for word in words:
-    vocab.add_word(word)
+        with open(self.caption_path, "r") as f:
+            lines = sorted(f.readlines()[1:])
+            for i in range(len(lines)):
+                line = lines[i]
+                if (i + 1) <= self.num_train_images * 5:
+                    output_caption = self.train_caption_path
+                elif (i + 1) <= (self.num_train_images + self.num_val_images) * 5:
+                    output_caption = self.val_caption_path
+                else:
+                    output_caption = self.test_caption_path
+                index = line.find(",")
+                caption = line[index + 1:]
+                tokens = nltk.tokenize.word_tokenize(caption.lower())
+                counter.update(tokens)
+                with open(output_caption, "a") as output_caption_f:
+                    output_caption_f.write(line)
 
-with open(vocab_path, 'wb') as f:
-    pickle.dump(vocab, f)
+        words = [word for word, cnt in counter.items() if cnt >= self.word_threshold]
 
+        vocab = Vocabulary()
+        vocab.add_word('<pad>')
+        vocab.add_word('<start>')
+        vocab.add_word('<end>')
+        vocab.add_word('<unk>')
 
-#------------------------------------------
+        for word in words:
+            vocab.add_word(word)
 
+        with open(self.vocab_path, 'wb') as f:
+            pickle.dump(vocab, f)
 
-def load_image(image_path, transform=None):
-    res = request.urlopen(image_path).read()
-    image = Image.open(BytesIO(res)).convert('RGB')
-    image = image.resize([224, 224], Image.LANCZOS)
+    def load_image(self, image_path, transform=None):
+        res = request.urlopen(image_path).read()
+        image = Image.open(BytesIO(res)).convert('RGB')
+        image = image.resize([224, 224], Image.LANCZOS)
 
-    if transform is not None:
-        image = transform(image).unsqueeze(0)
+        if transform is not None:
+            image = transform(image).unsqueeze(0)
 
-    return image
+        return image
 
-image_path = "https://imgnews.pstatic.net/image/001/2022/04/28/PYH2022042817560001300_P4_20220428195711761.jpg?type=w647"#"../model/image.jpg"
-encoder_path = "../model/encoder-7.ckpt"  # path for trained encoder
-decoder_path = "../model/decoder-7.ckpt"  # path for trained decoder"
-vocab_path = "../model/vocab.pkl"  # path for vocabulary wrappers
+    def img_txt(self):
+        embed_size = 256  # dimension of word embedding vectors
+        hidden_size = 512  # dimension of lstm hidden states
+        num_layers = 1  # number of layers in lstm
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-embed_size = 256  # dimension of word embedding vectors
-hidden_size = 512  # dimension of lstm hidden states
-num_layers = 1  # number of layers in lstm
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # image preprocessing
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
-# image preprocessing
-transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+        with open(self.vocab_path, 'rb') as f:
+            vocab = pickle.load(f)
 
-# # Load vocabulary wrapper
-with open(vocab_path, 'rb') as f:
-    vocab = pickle.load(f)
+        # Build models
+        encoder = EncoderCNN(embed_size).eval()  # eval mode (batchnorm uses moving mean/variance)
+        decoder = DecoderRNN(embed_size, hidden_size, len(vocab), num_layers)
+        encoder = encoder.to(device)
+        decoder = decoder.to(device)
 
-# Build models
-encoder = EncoderCNN(embed_size).eval()  # eval mode (batchnorm uses moving mean/variance)
-decoder = DecoderRNN(embed_size, hidden_size, len(vocab), num_layers)
-encoder = encoder.to(device)
-decoder = decoder.to(device)
+        # Load trained model parameters
+        encoder.load_state_dict(torch.load(self.encoder_path, map_location=torch.device('cpu')))
+        decoder.load_state_dict(torch.load(self.decoder_path, map_location=torch.device('cpu')))
 
-# Load trained model parameters
-encoder.load_state_dict(torch.load(encoder_path, map_location=torch.device('cpu')))
-decoder.load_state_dict(torch.load(decoder_path, map_location=torch.device('cpu')))
+        # Prepare image
+        image = self.load_image(self.image_path, transform)
+        image_tensor = image.to(device)
+        # Generate caption
+        feature = encoder(image_tensor)
+        sampled_ids = decoder.sample(feature)
+        sampled_ids = sampled_ids[0].cpu().numpy()  # (1, max_seq_length) -> (max_seq_length)
 
-# Prepare image
-image = load_image(image_path, transform)
-image_tensor = image.to(device)
-# Generate caption
-feature = encoder(image_tensor)
-sampled_ids = decoder.sample(feature)
-sampled_ids = sampled_ids[0].cpu().numpy()  # (1, max_seq_length) -> (max_seq_length)
-
-# Convert word_ids to words
-sampled_caption = []
-for word_id in sampled_ids:  # words_idx
-    word = vocab.idx2word[word_id]  # words_idx to word
-    sampled_caption.append(word)
-    if word == '<end>':
-        break
-sentence = ' '.join(sampled_caption)
-print(sentence)
-
-
-
-
+        # Convert word_ids to words
+        sampled_caption = []
+        for word_id in sampled_ids:  # words_idx
+            word = vocab.idx2word[word_id]  # words_idx to word
+            sampled_caption.append(word)
+            if word == '<end>':
+                break
+        sentence = ' '.join(sampled_caption)
+        return sentence

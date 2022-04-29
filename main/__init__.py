@@ -2,7 +2,10 @@ from flask import Flask
 from .views.scrapping import Scheduler
 from .views.tts import TTS
 from .views.translate import papagoAPI
+from .views.image_caption import imgTotxt
 import json
+
+
 
 app=Flask(__name__)
 
@@ -34,3 +37,14 @@ def doTTS():
 def doTranslate():
     trans=papagoAPI("my name is seear")
     return trans.eNtokR()
+
+@app.route("/gettxt")
+def doCaption():
+    clscaption=imgTotxt()
+    clscaption.setting_word()
+    trans = papagoAPI(clscaption.img_txt()).eNtokR()
+    return app.response_class(
+        response=trans,
+        status=200,
+        mimetype='application/json'
+    )
