@@ -1,7 +1,10 @@
+.flaskenv
 venvs
 seear
-.flaskenv
-model/
+
+captions.txt
+*.ckpt
+*.pkl
 
 # Created by https://www.toptal.com/developers/gitignore/api/pycharm
 # Edit at https://www.toptal.com/developers/gitignore?templates=pycharm

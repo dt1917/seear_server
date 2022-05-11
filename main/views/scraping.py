@@ -3,7 +3,6 @@ from bs4 import BeautifulSoup
 import urllib.request
 import re
 
-
 def getNewsInfo(index):
     url = "http://media.naver.com/press/" + str(index) + "/ranking?type=popular"
     req = urlopen(url)

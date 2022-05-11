@@ -15,17 +15,6 @@ import config
 
 nltk.download('punkt')
 
-'''num_train_images = 6000
-num_val_images = 1000
-
-caption_path = "../model/Flickr8k_dataset/captions.txt"
-vocab_path = "../model/vocab.pkl"
-word_threshold = 4
-train_caption_path = "../model/resized_train/captions.txt"
-val_caption_path = "../model/resized_val/captions.txt"
-test_caption_path = "../model/resized_test/captions.txt" '''
-
-
 class EncoderCNN(nn.Module):
     def __init__(self, embed_size):
         # Resnet-101
@@ -110,7 +99,7 @@ class imgTotxt:
     val_caption_path = os.path.join(adr, "resized_val/captions.txt")
     test_caption_path = os.path.join(adr, "resized_test/captions.txt")
 
-    image_path = "https://imgnews.pstatic.net/image/009/2022/04/29/0004956896_001_20220429081401047.jpg?type=w647"  # "../model/image.jpg"
+    image_path = "https://static01.nyt.com/images/2022/05/09/world/09ukraine-putin-vid-cover-sub/09ukraine-putin-vid-cover-sub-videoLarge.jpg"  # "../model/image.jpg"
     encoder_path = os.path.join(adr, "encoder-7.ckpt")  # path for trained encoder
     decoder_path = os.path.join(adr, "decoder-7.ckpt")  # path for trained decoder"
 
@@ -127,11 +116,7 @@ class imgTotxt:
         self.image_path=image_path
         self.encoder_path=encoder_path
         self.decoder_path=decoder_path
-        '''self.caption_path = "./model/Flickr8k_dataset/captions.txt"
-        self.vocab_path = "./model/vocab.pkl"
-        self.train_caption_path = "./model/resized_train/captions.txt"
-        self.val_caption_path = "./model/resized_val/captions.txt"
-        self.test_caption_path = "./model/resized_test/captions.txt"'''
+
     def setting_word(self):
         counter = Counter()
 
@@ -216,4 +201,8 @@ class imgTotxt:
             if word == '<end>':
                 break
         sentence = ' '.join(sampled_caption)
+        sentence=sentence.replace('<pad>','')
+        sentence=sentence.replace('<start>','')
+        sentence=sentence.replace('<end>','')
+        sentence=sentence.replace('<unk>','')
         return sentence
