@@ -161,7 +161,7 @@ class imgTotxt:
 
         return image
 
-    def img_txt(self):
+    def img_txt(self,imagePath):
         embed_size = 256  # dimension of word embedding vectors
         hidden_size = 512  # dimension of lstm hidden states
         num_layers = 1  # number of layers in lstm
@@ -186,7 +186,7 @@ class imgTotxt:
         decoder.load_state_dict(torch.load(self.decoder_path, map_location=torch.device('cpu')))
 
         # Prepare image
-        image = self.load_image(self.image_path, transform)
+        image = self.load_image(imagePath, transform)
         image_tensor = image.to(device)
         # Generate caption
         feature = encoder(image_tensor)

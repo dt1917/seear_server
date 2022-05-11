@@ -3,6 +3,7 @@ from .views.scrapping import Scheduler
 from .views.tts import TTS
 from .views.translate import papagoAPI
 from .views.image_caption import imgTotxt
+from flask import request
 import os
 import boto3
 import json
@@ -86,13 +87,24 @@ def doTranslate():
     trans=papagoAPI("my name is seear")
     return trans.eNtokR()
 
-@app.route("/gettxt")
+@app.route("/gettxt", methods=['POST'])
 def doCaption():
-    clscaption=imgTotxt()
+    print(request.data)
+    params = json.loads(request.data, encoding='utf-8')
+    if len(params) == 0:
+        return 'No parameter'
+
+    clscaption = imgTotxt()
     clscaption.setting_word()
-    trans = papagoAPI(clscaption.img_txt()).eNtokR()
+
+    result=''
+    for key in params.keys():
+        trans = papagoAPI(clscaption.img_txt(params[key])).eNtokR()
+        result += '{},{}<br>'.format(params[key], trans)
+
     return app.response_class(
-        response=trans,
+        response=result,
         status=200,
         mimetype='application/json'
     )
+
