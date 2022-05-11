@@ -2,7 +2,7 @@ name: CI/CD Docker
 
 # 트리거를 수행할 브랜치를 지정합니다.
 on:
-  pull_request:
+  push:
     branches: [ main ]
 env:
   DOCKER_IMAGE: ghcr.io/dt1917/seear
