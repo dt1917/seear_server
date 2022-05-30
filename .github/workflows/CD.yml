@@ -34,20 +34,18 @@ jobs:
       uses: aws-actions/amazon-ecr-login@v1
         
     - name: Build, tag, and push image to Amazon ECR
-      id: build-image
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: seear_cicd
-        GITHUB_SHA: ${{ github.sha }}
-      # TODO: 가장 최근에 달린 태그 달아서 배포하기
-
+        IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY .
-        docker tag $ECR_REGISTRY/$ECR_REPOSITORY $ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA
-        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY"
-        
-    # Update ECS services
-    - name: Update ECS services
-      run: |
-        aws ecs update-service --force-new-deployment --service seear-service --cluster seear-cluster
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+    
+    - name: Deploy Amazon ECS task definition
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: seear-service
+        cluster: seear-cluster
+        wait-for-service-stability: true
