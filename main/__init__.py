@@ -4,6 +4,7 @@ from .views.tts import TTS
 from .views.translate import papagoAPI
 from .views.image_caption import imgTotxt
 from flask import request
+from datetime import datetime
 import os
 import boto3
 import json
@@ -82,6 +83,10 @@ def doTTS():
     tmpTTS=TTS(1234,"안녕하세요")
     return tmpTTS.speak()
 
+@app.route("/health-check")
+def health_check():
+    return "success"
+
 @app.route("/translate")
 def doTranslate():
     trans=papagoAPI("my name is seear")
@@ -108,3 +113,13 @@ def doCaption():
         mimetype='application/json'
     )
 
+@app.route("/health-check")
+def healthCheck():
+    current_time = datetime.now()
+    return  app.response_class(
+        response={current_time},
+        status=200,
+        mimetype='application/json'
+    )
+
+#/health-check

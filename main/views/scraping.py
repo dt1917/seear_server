@@ -12,7 +12,7 @@ def getNewsInfo(index):
     subUrl = soup.select("._es_pc_link");  # 기사링크
     return {"name":name.text.strip(),"title":title,"subUrl":subUrl};
 
-for index in range(215,216):#50,700
+for index in range(215,216): #50,700
     try:
         newsInformation=getNewsInfo(index)
         name=newsInformation['name']
@@ -25,6 +25,7 @@ for index in range(215,216):#50,700
             print("///-------------------------------------------------------------------------")
             print(title[tmp].text)
             print(subUrl[tmp]['href'])
+
 
             req = urllib.request.Request(subUrl[tmp]['href'])
             subREQ = urlopen(req)
