@@ -1,27 +1,21 @@
-# This is a basic workflow to help you get started with Actions
-
 name: CD
 
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
   push:
     branches: [ main ]
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
-    name: build-image
+  deploy-prod:
+    name: Deploy to production
     runs-on: ubuntu-latest
-    
+    environment:
+      name: production
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
     - name: Checkout
-      uses: actions/checkout@v2.4.2
-      
+      uses: actions/checkout@v2
+
+    # Configure AWS credentials
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
@@ -29,23 +23,40 @@ jobs:
         aws-secret-access-key: ${{ secrets.SECRET_KEY }}
         aws-region: ap-northeast-2
 
+    # Deploy image to ECR
     - name: Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
+
+    - name: make flaskenv file
+      run: |
+        echo "FLASK_APP=$FLASK_APP" >> .flaskenv
+        echo "FLASK_ENV=$FLASK_ENV" >> .flaskenv
+        echo "CLIENT_ID=$CLIENT_ID" >> .flaskenv
+        echo "CLIENT_SECRET=$CLIENT_SECRET" >> .flaskenv
+      env:
+        FLASK_APP: ${{ secrets.FLASK_APP }}
+        FLASK_ENV: ${{ secrets.FLASK_ENV }}
+        CLIENT_ID: ${{ secrets.NAVER_CLIENTID }}
+        CLIENT_SECRET: ${{ secrets.NAVER_SECRETKEY }}
         
     - name: Build, tag, and push image to Amazon ECR
+      id: build-image
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: seear_cicd
-        IMAGE_TAG: ${{ github.sha }}
+        IMAGE_TAG: prod
+        GITHUB_SHA: ${{ github.sha }}
+      # TODO: 가장 최근에 달린 태그 달아서 배포하기
+
       run: |
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:prod-$GITHUB_SHA
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-    
-    - name: Deploy Amazon ECS task definition
-      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-      with:
-        task-definition: ${{ steps.task-def.outputs.task-definition }}
-        service: seear-service
-        cluster: seear-cluster
-        wait-for-service-stability: true
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:prod-$GITHUB_SHA
+        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+        
+    # Update ECS services
+    - name: Update ECS services
+      run: |
+        aws ecs update-service --force-new-deployment --service seear-service --cluster seear-cluster
