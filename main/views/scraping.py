@@ -1,45 +1,56 @@
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 import urllib.request
+import base64
 import re
 
-def getNewsInfo(index):
-    url = "http://media.naver.com/press/" + str(index) + "/ranking?type=popular"
-    req = urlopen(url)
-    soup = BeautifulSoup(req, "lxml", from_encoding='utf-8')
-    name = soup.find("a", {"class": "press_hd_name_link"})  # 언론사명
-    title = soup.select(".list_title");  # 기사제목
-    subUrl = soup.select("._es_pc_link");  # 기사링크
-    return {"name":name.text.strip(),"title":title,"subUrl":subUrl};
+class GetArticleData:
+    articleData=[]
+    def __init__(self):
+        self.articleData={}
 
-for index in range(215,216): #50,700
-    try:
-        newsInformation=getNewsInfo(index)
-        name=newsInformation['name']
-        title=newsInformation['title']
-        subUrl=newsInformation['subUrl']
-        print("^^")
-        print(name)
+    def getNewsInfo(self,index):
+        url = "http://media.naver.com/press/" + str(index) + "/ranking?type=popular"
+        req = urlopen(url)
+        soup = BeautifulSoup(req, "lxml", from_encoding='utf-8')
+        name = soup.find("a", {"class": "press_hd_name_link"})  # 언론사명
+        title = soup.select(".list_title");  # 기사제목
+        subUrl = soup.select("._es_pc_link");  # 기사링크
+        return {"name":name.text.strip(),"title":title,"subUrl":subUrl}
 
-        for tmp in range(len(title)):
-            print("///-------------------------------------------------------------------------")
-            print(title[tmp].text)
-            print(subUrl[tmp]['href'])
+    def clean_text(self,inputString):
+        text_rmv = re.sub('[,#/\:^.@*\"※~ㆍ』‘|\(\)\[\]`\'…》\”\“\’·\n]', '', inputString)
+        return text_rmv
 
-
-            req = urllib.request.Request(subUrl[tmp]['href'])
-            subREQ = urlopen(req)
-            subSoup = BeautifulSoup(subREQ, "lxml", from_encoding='utf-8')
-            subIMG1=subSoup.find("div",{"id":"dic_area"})
-            subIMG2 = subIMG1.find_all("img",{"class":"_LAZY_LOADING"})
-            for imgTmp in subIMG2:
-                print(imgTmp['data-src'])
-            subTEXT = subSoup.select_one("#dic_area")
-            print(subTEXT.text)
-
-    except Exception as e:
-        print(e)
-
+    @property
+    def getArticle(self):
+        id=0
+        for index in range(215,216):
+            try:
+                newsInformation=self.getNewsInfo(index)
+                name=newsInformation['name']
+                title=newsInformation['title']
+                subUrl=newsInformation['subUrl']
+                for tmp in range(len(title)):
+                    article = {}
+                    id = id + 1
+                    req = urllib.request.Request(subUrl[tmp]['href'])
+                    subREQ = urlopen(req)
+                    subSoup = BeautifulSoup(subREQ, "lxml", from_encoding='utf-8')
+                    subIMG1=subSoup.find("div",{"id":"dic_area"})
+                    subIMG2 = subIMG1.find_all("img",{"class":"_LAZY_LOADING"})
+                    images={}
+                    for imgTmp in range(len(subIMG2)):
+                        images[str(imgTmp)]=subIMG2[imgTmp]['data-src']
+                    subTEXT = subSoup.select_one("#dic_area")
+                    article["title"]=self.clean_text(title[tmp].text)
+                    article["url"]=subUrl[tmp]['href']
+                    article["images"]=images
+                    article["description"]=self.clean_text(subTEXT.text.strip())
+                    self.articleData[str(id)]=article
+            except Exception as e:
+                print(e)
+        return self.articleData
 
 '''
 스타뉴스 108

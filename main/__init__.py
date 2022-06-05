@@ -1,6 +1,5 @@
 from flask import Flask
-from .views.scrapping import Scheduler
-from .views.tts import TTS
+from .views.scraping import GetArticleData
 from .views.translate import papagoAPI
 from .views.image_caption import imgTotxt
 from flask import request
@@ -11,14 +10,11 @@ import json
 import sys
 
 app=Flask(__name__)
-
-#스케줄링 시작
-schedul=Scheduler()
-#schedul.startScheduler()
+app.config['JSON_AS_ASCII'] = False
 
 
 #==============================================================================
-s3 = boto3.client(
+'''s3 = boto3.client(
 	's3',
 	aws_access_key_id=os.environ.get("ACCESS_KEY_ID"),
 	aws_secret_access_key=os.environ.get("SECRET_KEY"),
@@ -61,32 +57,7 @@ if not os.path.isfile(encoderFile):
 if not os.path.isfile(decoderFile):
     s3.download_file(bucket, 'decoder-7.ckpt', decoderFile)
 #==============================================================================
-
-
-@app.route("/")
-def home():
-    data='''
-    {
-      "newsTitle": "힘들겠다",
-      "newsURL": "www.naver.com"
-    }
-    '''
-    res=app.response_class(
-        response=json.dumps(data),
-        status=200,
-        mimetype='application/json'
-    )
-    return res
-
-@app.route("/voice")
-def doTTS():
-    tmpTTS=TTS(1234,"안녕하세요")
-    return tmpTTS.speak()
-
-@app.route("/health-check")
-def health_check():
-    return "success"
-
+'''
 @app.route("/translate")
 def doTranslate():
     trans=papagoAPI("my name is seear")
@@ -122,4 +93,19 @@ def healthCheck():
         mimetype='application/json'
     )
 
-#/health-check
+@app.route('/api/article', methods=['GET'])
+def auction_list():
+    id = '0'
+    if request.args.get('id') != None and request.args.get('id') != '':
+        id = request.args.get('id')
+
+@app.route("/api/articles")
+def main():
+    articles=GetArticleData()
+    article=articles.getArticle
+    res = app.response_class(
+        response=json.dumps(article,ensure_ascii=False, indent=4),
+        status=200,
+        mimetype='application/json;charset=utf-8'
+    )
+    return res
