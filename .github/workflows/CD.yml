@@ -31,6 +31,8 @@ jobs:
         echo FLASK_ENV=${{ secrets.FLASK_ENV }} >> .env
         echo CLIENT_ID=${{ secrets.NAVER_CLIENTID }} >> .env
         echo CLIENT_SECRET=${{ secrets.NAVER_SECRETKEY }} >> .env
+        echo rds_host=${{ secrets.rds_host }} >> .env
+        echo rds_password=${{ secrets.rds_password }} >> .env
         cat .env
         
     - name: Build, tag, and push image to Amazon ECR
