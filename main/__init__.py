@@ -9,9 +9,27 @@ import boto3
 import json
 import sys
 import torch
+from .views.repository import Repository
+from flask_cors import CORS
+from apscheduler.schedulers.background import BackgroundScheduler
+from flask import make_response
 
 app=Flask(__name__)
+CORS(app)
 app.config['JSON_AS_ASCII'] = False
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+def insertArticleData():
+    repo = Repository()
+    articles = GetArticleData()
+    article = articles.getArticle
+    repo.insertArticles(json.dumps(article, ensure_ascii=False))
+
+sched=BackgroundScheduler(demon=True)
+sched.add_job(insertArticleData, 'cron', minute='0')#매정각마다 실행
+sched.start()
+
 
 
 #==============================================================================
@@ -64,27 +82,6 @@ def doTranslate():
     trans=papagoAPI("my name is seear")
     return trans.eNtokR()
 
-@app.route("/gettxt", methods=['POST'])
-def doCaption():
-    print(request.data)
-    params = json.loads(request.data, encoding='utf-8')
-    if len(params) == 0:
-        return 'No parameter'
-
-    clscaption = imgTotxt()
-    clscaption.setting_word()
-
-    result=''
-    for key in params.keys():
-        trans = papagoAPI(clscaption.img_txt(params[key])).eNtokR()
-        result += '{},{}<br>'.format(params[key], trans)
-
-    return app.response_class(
-        response=result,
-        status=200,
-        mimetype='application/json'
-    )
-
 @app.route("/health-check")
 def healthCheck():
     current_time = datetime.now()
@@ -102,10 +99,10 @@ def auction_list():
 
 @app.route("/api/articles")
 def main():
-    articles=GetArticleData()
-    article=articles.getArticle
+    repo=Repository()
+    contents=repo.getArticles()
     res = app.response_class(
-        response=json.dumps(article,ensure_ascii=False, indent=4),
+        response=contents,
         status=200,
         mimetype='application/json;charset=utf-8'
     )
@@ -114,26 +111,11 @@ def main():
 
 @app.route("/api/test")
 def apiTest():
-    caption = ""
-    img = 'https://image.ytn.co.kr/general/jpg/2022/0224/202202241553502802.jpg'
-    word_map = os.path.join(os.getcwd(), "main/model/WORDMAP_coco_5_cap_per_img_5_min_word_freq.json")
-    with open(word_map, 'r') as j:
-        word_map = json.load(j)
-    rev_word_map = {v: k for k, v in word_map.items()}
+    model=imgTotxt('d')
+    print(model.ModelStart())
 
-    a = imgTotxt()
-    seq, alphas = a.caption_image_beam_search(img, rev_word_map)
-    alphas = torch.FloatTensor(alphas)
-
-    for i in seq:
-        caption += rev_word_map[i] + " "
-
-
-    print(caption)
-    articles=GetArticleData()
-    article=articles.getArticle
     res = app.response_class(
-        response=json.dumps(article,ensure_ascii=False, indent=4),
+        response=json.dumps("{asdf:asdf}",ensure_ascii=False, indent=4),
         status=200,
         mimetype='application/json;charset=utf-8'
     )

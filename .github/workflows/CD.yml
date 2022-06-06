@@ -24,21 +24,14 @@ jobs:
         aws-region: ap-northeast-2
 
     # Deploy image to ECR
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
-
-    - name: make flaskenv file
+    - name: Create .env file
       run: |
-        echo "FLASK_APP=$FLASK_APP" >> .flaskenv
-        echo "FLASK_ENV=$FLASK_ENV" >> .flaskenv
-        echo "CLIENT_ID=$CLIENT_ID" >> .flaskenv
-        echo "CLIENT_SECRET=$CLIENT_SECRET" >> .flaskenv
-      env:
-        FLASK_APP: ${{ secrets.FLASK_APP }}
-        FLASK_ENV: ${{ secrets.FLASK_ENV }}
-        CLIENT_ID: ${{ secrets.NAVER_CLIENTID }}
-        CLIENT_SECRET: ${{ secrets.NAVER_SECRETKEY }}
+        touch .env
+        echo FLASK_APP=${{ secrets.FLASK_APP }} >> .env
+        echo FLASK_ENV=${{ secrets.FLASK_ENV }} >> .env
+        echo CLIENT_ID=${{ secrets.NAVER_CLIENTID }} >> .env
+        echo CLIENT_SECRET=${{ secrets.NAVER_SECRETKEY }} >> .env
+        cat .env
         
     - name: Build, tag, and push image to Amazon ECR
       env:
@@ -54,7 +47,7 @@ jobs:
       uses: aws-actions/amazon-ecs-render-task-definition@v1
       with:
         task-definition: task-definition.json
-        container-name: reacteiContainer
+        container-name: seear-container
         image: ${{ steps.build-image.outputs.image }}
 
     - name: Deploy Amazon ECS task definition

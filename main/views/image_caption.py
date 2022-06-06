@@ -20,11 +20,16 @@ import os
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class imgTotxt:
-    def caption_image_beam_search(self,image_path,word_map):
-        beam_size=5
-        AImodel = os.path.join(os.getcwd(),"./main/model/BEST_checkpoint_coco_5_cap_per_img_5_min_word_freq.pth.tar")
-        print(AImodel)
-        checkpoint = torch.load(AImodel, map_location=str(device))
+    def __init__(self,img):
+        self.caption = ""
+        self.tmp=img
+        self.img = 'https://image.ytn.co.kr/general/jpg/2022/0224/202202241553502802.jpg'
+        self.model = os.path.join(os.getcwd(),"main\\model\\BEST_checkpoint_coco_5_cap_per_img_5_min_word_freq.pth.tar")
+        self.word_map = os.path.join(os.getcwd(),"main\\model\\WORDMAP_coco_5_cap_per_img_5_min_word_freq.json")
+        self.ModelStart()
+
+    def ModelStart(self):
+        checkpoint = torch.load(self.model, map_location=str(device))
         decoder = checkpoint['decoder']
         decoder = decoder.to(device)
         decoder.eval()
@@ -32,18 +37,31 @@ class imgTotxt:
         encoder = encoder.to(device)
         encoder.eval()
 
+        with open(self.word_map, 'r') as j:
+            word_map = json.load(j)
+        rev_word_map = {v: k for k, v in word_map.items()}
+
+        seq, alphas = self.caption_image_beam_search(encoder, decoder, self.img, word_map, 5)
+        alphas = torch.FloatTensor(alphas)
+
+        for i in seq:
+            self.caption += rev_word_map[i] + " "
+
+        return self.caption
+
+    def caption_image_beam_search(self, encoder, decoder, image_path, word_map, beam_size=3):
         k = beam_size
         vocab_size = len(word_map)
         img = io.imread(image_path)
         if len(img.shape) == 2:
             img = img[:, :, np.newaxis]
             img = np.concatenate([img, img, img], axis=2)
-        img = cv2.resize(src=img, dsize=(256, 256))
+        img = cv2.resize(src=img, dsize=(256,256))
         img = img.transpose(2, 0, 1)
         img = img / 255.
         img = torch.FloatTensor(img).to(device)
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                         std=[0.229, 0.224, 0.225])
+                                        std=[0.229, 0.224, 0.225])
         transform = transforms.Compose([normalize])
         image = transform(img)
         image = image.unsqueeze(0)
@@ -82,10 +100,10 @@ class imgTotxt:
             next_word_inds = top_k_words % vocab_size
             seqs = torch.cat([seqs[prev_word_inds.long()], next_word_inds.unsqueeze(1)], dim=1)
             seqs_alpha = torch.cat([seqs_alpha[prev_word_inds.long()], alpha[prev_word_inds.long()].unsqueeze(1)],
-                                   dim=1)
+                                dim=1)
 
             incomplete_inds = [ind for ind, next_word in enumerate(next_word_inds) if
-                               next_word != word_map['<end>']]
+                            next_word != word_map['<end>']]
             complete_inds = list(set(range(len(next_word_inds))) - set(incomplete_inds))
 
             if len(complete_inds) > 0:
@@ -111,6 +129,3 @@ class imgTotxt:
         alphas = complete_seqs_alpha[i]
 
         return seq, alphas
-
-
-

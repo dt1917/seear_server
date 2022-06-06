@@ -3,11 +3,15 @@ from bs4 import BeautifulSoup
 import urllib.request
 import base64
 import re
+from .repository import Repository
+import timeit
 
 class GetArticleData:
     articleData=[]
     def __init__(self):
+        pressRepository=Repository()
         self.articleData={}
+        self.pressList=pressRepository.getPress()
 
     def getNewsInfo(self,index):
         url = "http://media.naver.com/press/" + str(index) + "/ranking?type=popular"
@@ -24,17 +28,23 @@ class GetArticleData:
 
     @property
     def getArticle(self):
-        id=0
-        for index in range(215,216):
-            try:
+        start = timeit.default_timer()
+        try:
+            result={"newsObjs":[]}
+            ''''''
+            for press in self.pressList:
+                index=int(press)
+                newsObjs = {}
                 newsInformation=self.getNewsInfo(index)
                 name=newsInformation['name']
                 title=newsInformation['title']
                 subUrl=newsInformation['subUrl']
-                for tmp in range(len(title)):
+                newsObjs["id"] = index
+                newsObjs["pressName"] = name
+                newsTop=[]
+                for rank in range(0,5):
                     article = {}
-                    id = id + 1
-                    req = urllib.request.Request(subUrl[tmp]['href'])
+                    req = urllib.request.Request(subUrl[rank]['href'])
                     subREQ = urlopen(req)
                     subSoup = BeautifulSoup(subREQ, "lxml", from_encoding='utf-8')
                     subIMG1=subSoup.find("div",{"id":"dic_area"})
@@ -43,14 +53,19 @@ class GetArticleData:
                     for imgTmp in range(len(subIMG2)):
                         images[str(imgTmp)]=subIMG2[imgTmp]['data-src']
                     subTEXT = subSoup.select_one("#dic_area")
-                    article["title"]=self.clean_text(title[tmp].text)
-                    article["url"]=subUrl[tmp]['href']
+                    article["rank"]=rank
+                    article["title"]=self.clean_text(title[rank].text)
+                    article["url"]=subUrl[rank]['href']
                     article["images"]=images
-                    article["description"]=self.clean_text(subTEXT.text.strip())
-                    self.articleData[str(id)]=article
-            except Exception as e:
-                print(e)
-        return self.articleData
+                    article["fullContent"]=self.clean_text(subTEXT.text.strip())
+                    newsTop.append(article)
+                newsObjs["newsTop"]=newsTop
+                result["newsObjs"].append(newsObjs)
+        except:
+            pass
+        stop = timeit.default_timer()
+        print(stop - start)
+        return result
 
 '''
 스타뉴스 108
