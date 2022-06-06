@@ -1,208 +1,116 @@
-import os.path
-from io import BytesIO
-
 import torch
-import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+import json
+import torchvision.transforms as transforms
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import skimage.transform
+import argparse
+# from scipy.misc import imresize
+import cv2
+import urllib
+from imageio import imread
+import requests
 from PIL import Image
-from torchvision import transforms
-import torchvision.models as models
-from torch.nn.utils.rnn import pack_padded_sequence
-import pickle
-import nltk
-from collections import Counter
-from urllib import request
-import config
+from io import BytesIO
+from skimage import io
+import os
 
-nltk.download('punkt')
-
-class EncoderCNN(nn.Module):
-    def __init__(self, embed_size):
-        # Resnet-101
-        super(EncoderCNN, self).__init__()
-        resnet = models.resnet101(pretrained=True)
-        modules = list(resnet.children())[:-1]
-        self.resnet = nn.Sequential(*modules)
-        self.linear = nn.Linear(resnet.fc.in_features, embed_size)  # output => input
-        self.bn = nn.BatchNorm1d(embed_size, momentum=0.01)
-
-    def forward(self, images):
-        # feature vectors
-        with torch.no_grad():
-            features = self.resnet(images)
-        features = features.reshape(features.size(0), -1)
-        features = self.bn(self.linear(features))
-        return features
-
-
-class DecoderRNN(nn.Module):
-    def __init__(self, embed_size, hidden_size, vocab_size, num_layers, max_seq_length=20):
-        super(DecoderRNN, self).__init__()
-        self.embed = nn.Embedding(vocab_size, embed_size)
-        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
-        self.linear = nn.Linear(hidden_size, vocab_size)
-        self.max_seg_length = max_seq_length
-
-    def forward(self, features, captions, lengths):
-        # captions
-        embeddings = self.embed(captions)
-        embeddings = torch.cat((features.unsqueeze(1), embeddings), 1)
-        packed = pack_padded_sequence(embeddings, lengths, batch_first=True)
-        hiddens, _ = self.lstm(packed)
-        outputs = self.linear(hiddens[0])
-        return outputs
-
-    def sample(self, features, states=None):
-        sampled_indexes = []
-        inputs = features.unsqueeze(1)
-        for i in range(self.max_seg_length):
-            hiddens, states = self.lstm(inputs, states)  # hiddens: (batch_size, 1, hidden_size)
-            outputs = self.linear(hiddens.squeeze(1))  # outputs: (batch_size, vocab_size)
-            _, predicted = outputs.max(1)  # predicted: (batch_size)
-            sampled_indexes.append(predicted)
-            inputs = self.embed(predicted)  # inputs: (batch_size, embed_size)
-            inputs = inputs.unsqueeze(1)  # inputs: (batch_size, 1, embed_size)
-        sampled_indexes = torch.stack(sampled_indexes, 1)  # sampled_indexes: (batch_size, max_seq_length)
-        return sampled_indexes
-
-
-class Vocabulary(object):
-    """Simple vocabulary wrapper."""
-
-    def __init__(self):
-        self.word2idx = {}
-        self.idx2word = {}
-        self.idx = 0
-
-    def add_word(self, word):
-        if not word in self.word2idx:
-            self.word2idx[word] = self.idx
-            self.idx2word[self.idx] = word
-            self.idx += 1
-
-    def __call__(self, word):
-        if not word in self.word2idx:
-            return self.word2idx['<unk>']
-        return self.word2idx[word]
-
-    def __len__(self):
-        return len(self.word2idx)
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class imgTotxt:
-    adr = config.config.Model_DIR
-    num_train_images = 6000
-    num_val_images = 1000
-    word_threshold = 4
-    caption_path = os.path.join(adr, "Flickr8k_dataset/captions.txt")
-    vocab_path = os.path.join(adr, "vocab.pkl")
-    train_caption_path = os.path.join(adr, "resized_train/captions.txt")
-    val_caption_path = os.path.join(adr, "resized_val/captions.txt")
-    test_caption_path = os.path.join(adr, "resized_test/captions.txt")
-
-    image_path = "https://static01.nyt.com/images/2022/05/09/world/09ukraine-putin-vid-cover-sub/09ukraine-putin-vid-cover-sub-videoLarge.jpg"  # "../model/image.jpg"
-    encoder_path = os.path.join(adr, "encoder-7.ckpt")  # path for trained encoder
-    decoder_path = os.path.join(adr, "decoder-7.ckpt")  # path for trained decoder"
-
-    def __int__(self,adr,num_train_images,num_val_images,word_threshold,caption_path,vocab_path,train_caption_path,val_caption_path,test_caption_path,image_path,encoder_path,decoder_path):
-        self.adr=adr
-        self.num_train_images=num_train_images
-        self.num_val_images=num_val_images
-        self.word_threshold=word_threshold
-        self.caption_path=caption_path
-        self.vocab_path=vocab_path
-        self.train_caption_path=train_caption_path
-        self.val_caption_path=val_caption_path
-        self.test_caption_path=test_caption_path
-        self.image_path=image_path
-        self.encoder_path=encoder_path
-        self.decoder_path=decoder_path
-
-    def setting_word(self):
-        counter = Counter()
-
-        with open(self.caption_path, "r") as f:
-            lines = sorted(f.readlines()[1:])
-            for i in range(len(lines)):
-                line = lines[i]
-                if (i + 1) <= self.num_train_images * 5:
-                    output_caption = self.train_caption_path
-                elif (i + 1) <= (self.num_train_images + self.num_val_images) * 5:
-                    output_caption = self.val_caption_path
-                else:
-                    output_caption = self.test_caption_path
-                index = line.find(",")
-                caption = line[index + 1:]
-                tokens = nltk.tokenize.word_tokenize(caption.lower())
-                counter.update(tokens)
-                with open(output_caption, "a") as output_caption_f:
-                    output_caption_f.write(line)
-
-        words = [word for word, cnt in counter.items() if cnt >= self.word_threshold]
-
-        vocab = Vocabulary()
-        vocab.add_word('<pad>')
-        vocab.add_word('<start>')
-        vocab.add_word('<end>')
-        vocab.add_word('<unk>')
-
-        for word in words:
-            vocab.add_word(word)
-
-        with open(self.vocab_path, 'wb') as f:
-            pickle.dump(vocab, f)
-
-    def load_image(self, image_path, transform=None):
-        res = request.urlopen(image_path).read()
-        image = Image.open(BytesIO(res)).convert('RGB')
-        image = image.resize([224, 224], Image.LANCZOS)
-
-        if transform is not None:
-            image = transform(image).unsqueeze(0)
-
-        return image
-
-    def img_txt(self,imagePath):
-        embed_size = 256  # dimension of word embedding vectors
-        hidden_size = 512  # dimension of lstm hidden states
-        num_layers = 1  # number of layers in lstm
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-        # image preprocessing
-        transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
-
-        with open(self.vocab_path, 'rb') as f:
-            vocab = pickle.load(f)
-
-        # Build models
-        encoder = EncoderCNN(embed_size).eval()  # eval mode (batchnorm uses moving mean/variance)
-        decoder = DecoderRNN(embed_size, hidden_size, len(vocab), num_layers)
-        encoder = encoder.to(device)
+    def caption_image_beam_search(self,image_path,word_map):
+        beam_size=5
+        AImodel = os.path.join(os.getcwd(),"./main/model/BEST_checkpoint_coco_5_cap_per_img_5_min_word_freq.pth.tar")
+        print(AImodel)
+        checkpoint = torch.load(AImodel, map_location=str(device))
+        decoder = checkpoint['decoder']
         decoder = decoder.to(device)
+        decoder.eval()
+        encoder = checkpoint['encoder']
+        encoder = encoder.to(device)
+        encoder.eval()
 
-        # Load trained model parameters
-        encoder.load_state_dict(torch.load(self.encoder_path, map_location=torch.device('cpu')))
-        decoder.load_state_dict(torch.load(self.decoder_path, map_location=torch.device('cpu')))
+        k = beam_size
+        vocab_size = len(word_map)
+        img = io.imread(image_path)
+        if len(img.shape) == 2:
+            img = img[:, :, np.newaxis]
+            img = np.concatenate([img, img, img], axis=2)
+        img = cv2.resize(src=img, dsize=(256, 256))
+        img = img.transpose(2, 0, 1)
+        img = img / 255.
+        img = torch.FloatTensor(img).to(device)
+        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                         std=[0.229, 0.224, 0.225])
+        transform = transforms.Compose([normalize])
+        image = transform(img)
+        image = image.unsqueeze(0)
+        encoder_out = encoder(image)
+        enc_image_size = encoder_out.size(1)
+        encoder_dim = encoder_out.size(3)
+        encoder_out = encoder_out.view(1, -1, encoder_dim)
+        num_pixels = encoder_out.size(1)
+        encoder_out = encoder_out.expand(k, num_pixels, encoder_dim)
+        k_prev_words = torch.LongTensor([[word_map['<start>']]] * k).to(device)
+        seqs = k_prev_words
+        top_k_scores = torch.zeros(k, 1).to(device)
+        seqs_alpha = torch.ones(k, 1, enc_image_size, enc_image_size).to(device)
+        complete_seqs = list()
+        complete_seqs_alpha = list()
+        complete_seqs_scores = list()
 
-        # Prepare image
-        image = self.load_image(imagePath, transform)
-        image_tensor = image.to(device)
-        # Generate caption
-        feature = encoder(image_tensor)
-        sampled_ids = decoder.sample(feature)
-        sampled_ids = sampled_ids[0].cpu().numpy()  # (1, max_seq_length) -> (max_seq_length)
+        step = 1
+        h, c = decoder.init_hidden_state(encoder_out)
 
-        # Convert word_ids to words
-        sampled_caption = []
-        for word_id in sampled_ids:  # words_idx
-            word = vocab.idx2word[word_id]  # words_idx to word
-            sampled_caption.append(word)
-            if word == '<end>':
+        while True:
+            embeddings = decoder.embedding(k_prev_words).squeeze(1)
+            awe, alpha = decoder.attention(encoder_out, h)
+            alpha = alpha.view(-1, enc_image_size, enc_image_size)
+            gate = decoder.sigmoid(decoder.f_beta(h))
+            awe = gate * awe
+            h, c = decoder.decode_step(torch.cat([embeddings, awe], dim=1), (h, c))
+            scores = decoder.fc(h)
+            scores = F.log_softmax(scores, dim=1)
+            scores = top_k_scores.expand_as(scores) + scores
+            if step == 1:
+                top_k_scores, top_k_words = scores[0].topk(k, 0, True, True)
+            else:
+                top_k_scores, top_k_words = scores.view(-1).topk(k, 0, True, True)
+            prev_word_inds = top_k_words / vocab_size
+            next_word_inds = top_k_words % vocab_size
+            seqs = torch.cat([seqs[prev_word_inds.long()], next_word_inds.unsqueeze(1)], dim=1)
+            seqs_alpha = torch.cat([seqs_alpha[prev_word_inds.long()], alpha[prev_word_inds.long()].unsqueeze(1)],
+                                   dim=1)
+
+            incomplete_inds = [ind for ind, next_word in enumerate(next_word_inds) if
+                               next_word != word_map['<end>']]
+            complete_inds = list(set(range(len(next_word_inds))) - set(incomplete_inds))
+
+            if len(complete_inds) > 0:
+                complete_seqs.extend(seqs[complete_inds].tolist())
+                complete_seqs_alpha.extend(seqs_alpha[complete_inds].tolist())
+                complete_seqs_scores.extend(top_k_scores[complete_inds])
+            k -= len(complete_inds)
+            if k == 0:
                 break
-        sentence = ' '.join(sampled_caption)
-        sentence=sentence.replace('<pad>','')
-        sentence=sentence.replace('<start>','')
-        sentence=sentence.replace('<end>','')
-        sentence=sentence.replace('<unk>','')
-        return sentence
+            seqs = seqs[incomplete_inds]
+            seqs_alpha = seqs_alpha[incomplete_inds]
+            h = h[prev_word_inds[incomplete_inds].long()]
+            c = c[prev_word_inds[incomplete_inds].long()]
+            encoder_out = encoder_out[prev_word_inds[incomplete_inds].long()]
+            top_k_scores = top_k_scores[incomplete_inds].unsqueeze(1)
+            k_prev_words = next_word_inds[incomplete_inds].unsqueeze(1)
+            if step > 50:
+                break
+            step += 1
+
+        i = complete_seqs_scores.index(max(complete_seqs_scores))
+        seq = complete_seqs[i]
+        alphas = complete_seqs_alpha[i]
+
+        return seq, alphas
+
+
+

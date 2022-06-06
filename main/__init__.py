@@ -8,6 +8,7 @@ import os
 import boto3
 import json
 import sys
+import torch
 
 app=Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
@@ -101,6 +102,34 @@ def auction_list():
 
 @app.route("/api/articles")
 def main():
+    articles=GetArticleData()
+    article=articles.getArticle
+    res = app.response_class(
+        response=json.dumps(article,ensure_ascii=False, indent=4),
+        status=200,
+        mimetype='application/json;charset=utf-8'
+    )
+    return res
+
+
+@app.route("/api/test")
+def apiTest():
+    caption = ""
+    img = 'https://image.ytn.co.kr/general/jpg/2022/0224/202202241553502802.jpg'
+    word_map = os.path.join(os.getcwd(), "main/model/WORDMAP_coco_5_cap_per_img_5_min_word_freq.json")
+    with open(word_map, 'r') as j:
+        word_map = json.load(j)
+    rev_word_map = {v: k for k, v in word_map.items()}
+
+    a = imgTotxt()
+    seq, alphas = a.caption_image_beam_search(img, rev_word_map)
+    alphas = torch.FloatTensor(alphas)
+
+    for i in seq:
+        caption += rev_word_map[i] + " "
+
+
+    print(caption)
     articles=GetArticleData()
     article=articles.getArticle
     res = app.response_class(
