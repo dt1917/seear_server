@@ -6,8 +6,7 @@ WORKDIR /app
 ADD . /app/
 
 RUN apt-get update
-RUN apt-get install libglib2.0-0
-RUN apt-get -y install libgl1-mesa-glx
+RUN apt-get install -y libglib2.0-0 libgl1-mesa-glx libsm6 libxrender1 libxext6
 RUN pip install -r requirements.txt
 
 ENV HOST 0.0.0.0
