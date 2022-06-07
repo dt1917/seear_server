@@ -30,8 +30,6 @@ sched=BackgroundScheduler(demon=True)
 sched.add_job(insertArticleData, 'cron', minute='0')#매정각마다 실행
 sched.start()
 
-
-
 #==============================================================================
 '''s3 = boto3.client(
 	's3',
