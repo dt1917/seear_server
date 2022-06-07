@@ -6,6 +6,7 @@ WORKDIR /app
 ADD . /app/
 
 RUN apt-get update
+RUN apt-get install libglib2.0-0
 RUN apt-get -y install libgl1-mesa-glx
 RUN pip install -r requirements.txt
 
