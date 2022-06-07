@@ -91,12 +91,6 @@ def healthCheck():
         mimetype='application/json'
     )
 
-@app.route('/api/article', methods=['GET'])
-def auction_list():
-    id = '0'
-    if request.args.get('id') != None and request.args.get('id') != '':
-        id = request.args.get('id')
-
 @app.route("/api/articles")
 def main():
     repo=Repository()
@@ -106,7 +100,7 @@ def main():
         status=200,
         mimetype='application/json;charset=utf-8'
     )
-    return res
+    return
 
 
 @app.route("/api/test")
