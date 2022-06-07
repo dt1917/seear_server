@@ -82,9 +82,8 @@ def doTranslate():
 
 @app.route("/health-check")
 def healthCheck():
-    current_time = datetime.now()
     return app.response_class(
-        response={current_time},
+        response={"Hello"},
         status=200,
         mimetype='application/json'
     )
