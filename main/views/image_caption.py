@@ -22,10 +22,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class imgTotxt:
     def __init__(self,img):
         self.caption = ""
-        self.tmp=img
-        self.img = 'https://image.ytn.co.kr/general/jpg/2022/0224/202202241553502802.jpg'
-        self.model = os.path.join(os.getcwd(),"main\\model\\BEST_checkpoint_coco_5_cap_per_img_5_min_word_freq.pth.tar")
-        self.word_map = os.path.join(os.getcwd(),"main\\model\\WORDMAP_coco_5_cap_per_img_5_min_word_freq.json")
+        self.img = img
+        self.model = os.path.join(os.getcwd(), 'BEST_checkpoint_coco_5_cap_per_img_5_min_word_freq.pth.tar')
+        self.word_map = os.path.join(os.getcwd(), 'WORDMAP_coco_5_cap_per_img_5_min_word_freq.json')
         self.ModelStart()
 
     def ModelStart(self):
@@ -47,7 +46,10 @@ class imgTotxt:
         for i in seq:
             self.caption += rev_word_map[i] + " "
 
-        return self.caption
+        startIndex = self.caption.find("<start>") + 8
+        endIndex = self.caption.find("<end>")
+
+        return self.caption[startIndex:endIndex]
 
     def caption_image_beam_search(self, encoder, decoder, image_path, word_map, beam_size=3):
         k = beam_size

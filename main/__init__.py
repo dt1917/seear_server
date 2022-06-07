@@ -31,7 +31,7 @@ sched.add_job(insertArticleData, 'cron', minute='0')#매정각마다 실행
 sched.start()
 
 #==============================================================================
-'''s3 = boto3.client(
+s3 = boto3.client(
 	's3',
 	aws_access_key_id=os.environ.get("ACCESS_KEY_ID"),
 	aws_secret_access_key=os.environ.get("SECRET_KEY"),
@@ -53,28 +53,16 @@ def download(s3_bucket, s3_object_key, local_file_name):
         s3.download_fileobj(s3_bucket, s3_object_key, f, Callback=progress)
     print()
 
-flicker = './main/model/Flickr8k_dataset/captions.txt'
-testData = './main/model/resized_test/captions.txt'
-trainData = './main/model/resized_train/captions.txt'
-valData = './main/model/resized_val/captions.txt'
-encoderFile = './main/model/encoder-7.ckpt'
-decoderFile = './main/model/decoder-7.ckpt'
+model = './BEST_checkpoint_coco_5_cap_per_img_5_min_word_freq.pth.tar'
+word = './WORDMAP_coco_5_cap_per_img_5_min_word_freq.json'
 bucket="seear"
 
-if not os.path.isfile(flicker):
-    download(bucket, 'Flickr8k_dataset/captions.txt', flicker)
-if not os.path.isfile(testData):
-    s3.download_file(bucket, 'resized_test/captions.txt', testData)
-if not os.path.isfile(trainData):
-    s3.download_file(bucket, 'resized_train/captions.txt', trainData)
-if not os.path.isfile(valData):
-    s3.download_file(bucket, 'resized_val/captions.txt', valData)
-if not os.path.isfile(encoderFile):
-    s3.download_file(bucket, 'encoder-7.ckpt', encoderFile)
-if not os.path.isfile(decoderFile):
-    s3.download_file(bucket, 'decoder-7.ckpt', decoderFile)
+if not os.path.isfile(model):
+    download(bucket, 'BEST_checkpoint_coco_5_cap_per_img_5_min_word_freq.pth.tar', model)
+if not os.path.isfile(word):
+    s3.download_file(bucket, 'WORDMAP_coco_5_cap_per_img_5_min_word_freq.json', word)
 #==============================================================================
-'''
+
 @app.route("/translate")
 def doTranslate():
     trans=papagoAPI("my name is seear")
@@ -103,10 +91,10 @@ def main():
 @app.route("/api/test")
 def apiTest():
     model=imgTotxt('d')
-    print(model.ModelStart())
+    result={"result":model.ModelStart()}
 
     res = app.response_class(
-        response=json.dumps("{asdf:asdf}",ensure_ascii=False, indent=4),
+        response=json.dumps(result,ensure_ascii=False, indent=4),
         status=200,
         mimetype='application/json;charset=utf-8'
     )

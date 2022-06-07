@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 import urllib.request
 import base64
 import re
+
+from .image_caption import imgTotxt
 from .repository import Repository
 import timeit
 
@@ -50,18 +52,21 @@ class GetArticleData:
                     subIMG1=subSoup.find("div",{"id":"dic_area"})
                     subIMG2 = subIMG1.find_all("img",{"class":"_LAZY_LOADING"})
                     images={}
+                    pictures="";
                     for imgTmp in range(len(subIMG2)):
-                        images[str(imgTmp)]=subIMG2[imgTmp]['data-src']
+                        model = imgTotxt(subIMG2[imgTmp]['data-src'])
+                        pictures=pictures+"사진설명은 "+model+" 입니다."
                     subTEXT = subSoup.select_one("#dic_area")
                     article["rank"]=rank
                     article["title"]=self.clean_text(title[rank].text)
                     article["url"]=subUrl[rank]['href']
-                    article["images"]=images
-                    article["fullContent"]=self.clean_text(subTEXT.text.strip())
+                    #article["images"]=images
+                    article["fullContent"]=pictures+self.clean_text(subTEXT.text.strip())
                     newsTop.append(article)
                 newsObjs["newsTop"]=newsTop
                 result["newsObjs"].append(newsObjs)
-        except:
+        except Exception as e:
+            print(e)
             pass
         stop = timeit.default_timer()
         print(stop - start)
