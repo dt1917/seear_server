@@ -5,6 +5,8 @@ RUN mkdir -p /app
 WORKDIR /app
 ADD . /app/
 
+RUN apt-get update
+RUN apt-get -y install libgl1-mesa-glx
 RUN pip install -r requirements.txt
 
 ENV HOST 0.0.0.0
