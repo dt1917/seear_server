@@ -32,9 +32,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.SEEAR_FLASK_CI_CD }}
-      - id: read-docker-image-identifiers
-        name: Read Docker Image Identifiers
-        run: echo ::set-env name=DOCKER_IMAGE::$(echo ${{ env.DOCKER_IMAGE }} | tr '[:upper:]' '[:lower:]')
+          
       - name: Build and push
         id: docker_build
         uses: docker/build-push-action@v2
