@@ -1,6 +1,8 @@
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 import urllib.request
+from .translate import papagoAPI
+
 import base64
 import re
 
@@ -18,7 +20,7 @@ class GetArticleData:
     def getNewsInfo(self,index):
         url = "http://media.naver.com/press/" + str(index) + "/ranking?type=popular"
         req = urlopen(url)
-        soup = BeautifulSoup(req, "lxml", from_encoding='utf-8')
+        soup = BeautifulSoup(req, "html.parser", from_encoding='utf-8')
         name = soup.find("a", {"class": "press_hd_name_link"})  # 언론사명
         title = soup.select(".list_title");  # 기사제목
         subUrl = soup.select("._es_pc_link");  # 기사링크
@@ -31,45 +33,49 @@ class GetArticleData:
     @property
     def getArticle(self):
         start = timeit.default_timer()
-        try:
-            result={"newsObjs":[]}
-            ''''''
-            for press in self.pressList:
-                index=int(press)
-                newsObjs = {}
-                newsInformation=self.getNewsInfo(index)
-                name=newsInformation['name']
-                title=newsInformation['title']
-                subUrl=newsInformation['subUrl']
-                newsObjs["id"] = index
-                newsObjs["pressName"] = name
-                newsTop=[]
+        result={"newsObjs":[]}
+        ''''''
+        for press in self.pressList:
+            index=int(press)
+            newsObjs = {}
+            newsInformation=self.getNewsInfo(index)
+            name=newsInformation['name']
+            title=newsInformation['title']
+            subUrl=newsInformation['subUrl']
+            newsObjs["id"] = index
+            newsObjs["pressName"] = name
+            newsTop=[]
+            try:
                 for rank in range(0,5):
                     article = {}
                     req = urllib.request.Request(subUrl[rank]['href'])
                     subREQ = urlopen(req)
-                    subSoup = BeautifulSoup(subREQ, "lxml", from_encoding='utf-8')
+                    subSoup = BeautifulSoup(subREQ, "html.parser", from_encoding='utf-8')
                     subIMG1=subSoup.find("div",{"id":"dic_area"})
                     subIMG2 = subIMG1.find_all("img",{"class":"_LAZY_LOADING"})
                     images={}
                     pictures="";
                     for imgTmp in range(len(subIMG2)):
                         model = imgTotxt(subIMG2[imgTmp]['data-src'])
-                        pictures=pictures+"사진설명은 "+model+" 입니다."
+                        text=papagoAPI(str(model.ModelStart()))
+                        pictures=pictures+"사진"+str(imgTmp+1)+" "+str(text.eNtokR())+" 입니다."
                     subTEXT = subSoup.select_one("#dic_area")
                     article["rank"]=rank
                     article["title"]=self.clean_text(title[rank].text)
                     article["url"]=subUrl[rank]['href']
                     #article["images"]=images
-                    article["fullContent"]=pictures+self.clean_text(subTEXT.text.strip())
+                    article["fullContent"]=self.clean_text(pictures)+self.clean_text(subTEXT.text.strip())
                     newsTop.append(article)
                 newsObjs["newsTop"]=newsTop
                 result["newsObjs"].append(newsObjs)
-        except Exception as e:
-            print(e)
-            pass
+                print(result)
+            except Exception as e:
+                print(e)
+                pass
         stop = timeit.default_timer()
         print(stop - start)
+        with open('newsdata','a')as f:
+            f.write(str(result))
         return result
 
 '''
