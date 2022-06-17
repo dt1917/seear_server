@@ -3,7 +3,7 @@
 > 베리어프리란? 사회적 약자들의 사회 생활에 지장이 되는 물리적 장애물이나 심리적인 장벽을 없애기 위한 기술
 
 # 실행시 필요한 파일
-- .flaskenv
+- .flaskenv (네이버 API, AWS API)
 - BEST_checkpoint_coco_5_cap_per_img_5_min_word_freq.pth (S3)
 - WORDMAP_coco_5_cap_per_img_5_min_word_freq (S3)
 
