@@ -3,23 +3,13 @@ import torch.nn.functional as F
 import numpy as np
 import json
 import torchvision.transforms as transforms
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-import skimage.transform
-import argparse
-# from scipy.misc import imresize
 import cv2
-import urllib
-from imageio import imread
-import requests
-from PIL import Image
-from io import BytesIO
 from skimage import io
 import os
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-class imgTotxt:
+class ImageCaptioning:
     def __init__(self,img):
         self.caption = ""
         self.img = img

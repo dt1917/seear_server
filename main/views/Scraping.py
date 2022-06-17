@@ -1,13 +1,13 @@
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 import urllib.request
-from .translate import papagoAPI
+from .Translate import Translate
 
 import base64
 import re
 
-from .image_caption import imgTotxt
-from .repository import Repository
+from .ImageCaptioning import ImageCaptioning
+from .Repository import Repository
 import timeit
 
 class GetArticleData:
@@ -56,14 +56,13 @@ class GetArticleData:
                     images={}
                     pictures="";
                     for imgTmp in range(len(subIMG2)):
-                        model = imgTotxt(subIMG2[imgTmp]['data-src'])
-                        text=papagoAPI(str(model.ModelStart()))
-                        pictures=pictures+"사진"+str(imgTmp+1)+" "+str(text.eNtokR())+" 입니다."
+                        model = ImageCaptioning(subIMG2[imgTmp]['data-src'])
+                        text=Translate(str(model.ModelStart()))
+                        pictures=pictures+"사진"+str(imgTmp+1)+" "+str(text.englishTokorean())+" 입니다."
                     subTEXT = subSoup.select_one("#dic_area")
                     article["rank"]=rank
                     article["title"]=self.clean_text(title[rank].text)
                     article["url"]=subUrl[rank]['href']
-                    #article["images"]=images
                     article["fullContent"]=self.clean_text(pictures)+self.clean_text(subTEXT.text.strip())
                     newsTop.append(article)
                 newsObjs["newsTop"]=newsTop

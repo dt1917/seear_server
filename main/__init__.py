@@ -1,24 +1,18 @@
 from flask import Flask
-from .views.scraping import GetArticleData
-from .views.translate import papagoAPI
-from .views.image_caption import imgTotxt
-from flask import request
-from datetime import datetime
-import os
-import boto3
+from .views.Scraping import GetArticleData
+from .views.Translate import Translate
+from .views.ImageCaptioning import ImageCaptioning
+from .views.GetModeltoS3 import GetModeltoS3
 import json
-import sys
-import torch
-from .views.repository import Repository
+from .views.Repository import Repository
 from flask_cors import CORS
 from apscheduler.schedulers.background import BackgroundScheduler
-from flask import make_response
 
 app=Flask(__name__)
 CORS(app)
 app.config['JSON_AS_ASCII'] = False
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+GetModeltoS3().downloadModel()
 
 def insertArticleData():
     repo = Repository()
@@ -30,56 +24,10 @@ sched=BackgroundScheduler(demon=True)
 sched.add_job(insertArticleData, 'cron', minute='0')#매정각마다 실행
 sched.start()
 
-#==============================================================================
-s3 = boto3.client(
-	's3',
-	aws_access_key_id=os.environ.get("ACCESS_KEY_ID"),
-	aws_secret_access_key=os.environ.get("SECRET_KEY"),
-)
-
-def download(s3_bucket, s3_object_key, local_file_name):
-    meta_data = s3.head_object(Bucket=s3_bucket, Key=s3_object_key)
-    total_length = int(meta_data.get('ContentLength', 0))
-    downloaded = 0
-    def progress(chunk):
-        nonlocal downloaded
-        downloaded += chunk
-        done = int(50 * downloaded / total_length)
-        sys.stdout.write("\r[%s%s]" % ('=' * done, ' ' * (50-done)) )
-        sys.stdout.flush()
-
-    print(f'Downloading {s3_object_key}')
-    with open(local_file_name, 'wb') as f:
-        s3.download_fileobj(s3_bucket, s3_object_key, f, Callback=progress)
-    print()
-
-model = './BEST_checkpoint_coco_5_cap_per_img_5_min_word_freq.pth.tar'
-word = './WORDMAP_coco_5_cap_per_img_5_min_word_freq.json'
-bucket="seear"
-
-if not os.path.isfile(model):
-    download(bucket, 'BEST_checkpoint_coco_5_cap_per_img_5_min_word_freq.pth.tar', model)
-if not os.path.isfile(word):
-    s3.download_file(bucket, 'WORDMAP_coco_5_cap_per_img_5_min_word_freq.json', word)
-#==============================================================================
-
-@app.route("/translate")
-def doTranslate():
-    trans=papagoAPI("my name is seear")
-    return trans.eNtokR()
-
-@app.route("/health-check")
-def healthCheck():
-    return app.response_class(
-        response={"Hello"},
-        status=200,
-        mimetype='application/json'
-    )
-
-@app.route("/api/articles")
+@app.route("/articles")
 def main():
-    repo=Repository()
-    contents=repo.getArticles()
+    repo = Repository()
+    contents = repo.getArticles()
     res = app.response_class(
         response=contents,
         status=200,
@@ -87,15 +35,13 @@ def main():
     )
     return res
 
-
-@app.route("/api/test")
-def apiTest():
-    model=imgTotxt('d')
-    result={"result":model.ModelStart()}
-
-    res = app.response_class(
-        response=json.dumps(result,ensure_ascii=False, indent=4),
+@app.route("/pressses")
+def getPress():
+    repository = Repository()
+    repository.insertPress()
+    responseData = app.response_class(
+        response="Complete",
         status=200,
         mimetype='application/json;charset=utf-8'
     )
-    return res
+    return responseData
